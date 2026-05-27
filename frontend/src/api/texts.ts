@@ -1,4 +1,5 @@
-import { apiClient } from './client'
+import { collection, doc, getDocs, getDoc, addDoc, Timestamp } from 'firebase/firestore'
+import { db } from '../../firebase.config'
 
 export interface TextSummary {
     id: string
@@ -18,31 +19,6 @@ export interface TextFull {
     }[]
 }
 
-interface RawText {
-    title: string
-    body: string
-    direction: string
-    questions: {
-        body: string
-        answers: { body: string; isCorrect: boolean }[]
-    }[]
-}
-
-function transformText(raw: RawText): TextFull {
-    return {
-        title: raw.title,
-        body: raw.body,
-        dir: raw.direction as 'ltr' | 'rtl',
-        questions: raw.questions.map(q => ({
-            question: q.body,
-            answers: q.answers.map(a => ({
-                text: a.body,
-                correct: a.isCorrect,
-            })),
-        })),
-    }
-}
-
 export interface UploadPayload {
     title: string
     body: string
@@ -53,12 +29,52 @@ export interface UploadPayload {
     }[]
 }
 
+function computeWordCount(body: string): number {
+    return body.split(/\s+/).filter(Boolean).length
+}
+
 export const textsApi = {
-    list: () => apiClient.get<{ texts: TextSummary[] }>('/texts'),
-    get:  async (id: string) => {
-        const data = await apiClient.get<{ text: RawText }>(`/texts/${id}`)
-        return transformText(data.text)
+    list: async (): Promise<{ texts: TextSummary[] }> => {
+        const snapshot = await getDocs(collection(db, 'texts'))
+        const texts = snapshot.docs.map(d => {
+            const data = d.data()
+            return {
+                id: d.id,
+                title: data.title,
+                wordCount: data.wordCount,
+                direction: data.direction,
+                createdAt: (data.createdAt as Timestamp).toDate().toISOString(),
+            }
+        })
+        return { texts }
     },
-    upload: (payload: UploadPayload, apiKey: string) =>
-        apiClient.post<{ text: RawText }>('/texts', payload, { 'x-api-key': apiKey }),
+
+    get: async (id: string): Promise<TextFull> => {
+        const snapshot = await getDoc(doc(db, 'texts', id))
+        if (!snapshot.exists()) throw new Error('Text not found')
+        const data = snapshot.data()
+        return {
+            title: data.title,
+            body: data.body,
+            dir: data.direction as 'ltr' | 'rtl',
+            questions: data.questions.map((q: { body: string; answers: { body: string; isCorrect: boolean }[] }) => ({
+                question: q.body,
+                answers: q.answers.map(a => ({
+                    text: a.body,
+                    correct: a.isCorrect,
+                })),
+            })),
+        }
+    },
+
+    upload: async (payload: UploadPayload): Promise<void> => {
+        await addDoc(collection(db, 'texts'), {
+            title: payload.title,
+            body: payload.body,
+            direction: payload.direction,
+            wordCount: computeWordCount(payload.body),
+            createdAt: Timestamp.now(),
+            questions: payload.questions,
+        })
+    },
 }

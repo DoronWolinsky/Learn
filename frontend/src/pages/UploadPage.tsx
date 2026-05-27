@@ -26,7 +26,6 @@ function UploadPage() {
     const navigate = useNavigate()
     const { theme, toggleTheme } = useTheme()
 
-    const [apiKey, setApiKey] = useState(() => localStorage.getItem('uploadApiKey') ?? '')
     const [title, setTitle] = useState('')
     const [body, setBody] = useState('')
     const [direction, setDirection] = useState<'ltr' | 'rtl'>('ltr')
@@ -63,7 +62,6 @@ function UploadPage() {
         setError(null)
         setSuccess(false)
 
-        if (!apiKey.trim()) { setError('API key is required.'); return }
         if (!title.trim()) { setError('Title is required.'); return }
         if (!body.trim()) { setError('Text body is required.'); return }
         if (questions.length === 0) { setError('Add at least one question.'); return }
@@ -74,8 +72,6 @@ function UploadPage() {
                 if (!q.answers[j].body.trim()) { setError(`Question ${i + 1}, answer ${j + 1} is empty.`); return }
             }
         }
-
-        localStorage.setItem('uploadApiKey', apiKey)
 
         const payload: UploadPayload = {
             title: title.trim(),
@@ -92,7 +88,7 @@ function UploadPage() {
 
         setLoading(true)
         try {
-            await textsApi.upload(payload, apiKey)
+            await textsApi.upload(payload)
             setSuccess(true)
             setTitle('')
             setBody('')
@@ -124,17 +120,6 @@ function UploadPage() {
 
             <div className="w-full max-w-2xl flex flex-col gap-8">
                 <h1 className="text-3xl font-bold text-center">Upload a text</h1>
-
-                <div className="flex flex-col gap-2">
-                    <label className="text-sm uppercase tracking-widest opacity-50">API Key</label>
-                    <input
-                        type="password"
-                        value={apiKey}
-                        onChange={e => setApiKey(e.target.value)}
-                        placeholder="Your upload key"
-                        className={inputClass}
-                    />
-                </div>
 
                 <div className="flex flex-col gap-2">
                     <label className="text-sm uppercase tracking-widest opacity-50">Title</label>

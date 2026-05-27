@@ -26,7 +26,7 @@ function SetupPage() {
                 setTexts(data.texts)
                 if (data.texts.length > 0) handleSelectText(data.texts[0])
             })
-            .catch(() => setError('Could not load texts. Is the backend running?'))
+            .catch(() => setError('Could not load texts. Please try again.'))
             .finally(() => setLoading(false))
     }, [])
 
