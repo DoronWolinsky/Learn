@@ -1,14 +1,16 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import { onAuthStateChanged, signInAnonymously, signOut } from 'firebase/auth'
-import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { doc, onSnapshot } from 'firebase/firestore'
 import { auth, db } from '../../firebase.config'
+import type { UserRole } from '../types'
 
 export interface AuthUser {
     uid: string
     name: string | null
     email: string | null
     isAnonymous: boolean
+    roles: UserRole[] | null
 }
 
 interface AuthContextType {
@@ -24,36 +26,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        let unsubscribeUserDoc: (() => void) | null = null
+
+        const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
+            unsubscribeUserDoc?.()
+            unsubscribeUserDoc = null
+
             if (!firebaseUser) {
-                await signInAnonymously(auth)
+                signInAnonymously(auth)
                 return
             }
 
-            if (!firebaseUser.isAnonymous) {
-                const ref = doc(db, 'users', firebaseUser.uid)
-                const snapshot = await getDoc(ref)
-                if (!snapshot.exists()) {
-                    await setDoc(ref, {
-                        name: firebaseUser.displayName,
-                        email: firebaseUser.email,
-                        isAnonymous: false,
-                        createdAt: new Date(),
-                    })
-                }
+            if (firebaseUser.isAnonymous) {
+                setUser({
+                    uid: firebaseUser.uid,
+                    name: firebaseUser.displayName,
+                    email: firebaseUser.email,
+                    isAnonymous: true,
+                    roles: null,
+                })
+                setLoading(false)
+                return
             }
 
-            setUser({
-                uid: firebaseUser.uid,
-                name: firebaseUser.displayName,
-                email: firebaseUser.email,
-                isAnonymous: firebaseUser.isAnonymous,
+            unsubscribeUserDoc = onSnapshot(doc(db, 'users', firebaseUser.uid), (snapshot) => {
+                const data = snapshot.data()
+                setUser({
+                    uid: firebaseUser.uid,
+                    name: firebaseUser.displayName,
+                    email: firebaseUser.email,
+                    isAnonymous: false,
+                    roles: (data?.roles as UserRole[] | undefined) ?? null,
+                })
+                setLoading(false)
             })
-
-            setLoading(false)
         })
 
-        return unsubscribe
+        return () => {
+            unsubscribeUserDoc?.()
+            unsubscribeAuth()
+        }
     }, [])
 
     async function logout() {
