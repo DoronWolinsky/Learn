@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { ThemeProvider } from './context/ThemeContext'
 import { AuthProvider } from './context/AuthContext'
-import { RegisteredRoute, PublicOnlyRoute, OnboardingGate } from './components/ProtectedRoute'
+import { RegisteredRoute, PublicOnlyRoute, OnboardingGate, TeacherRoute } from './components/ProtectedRoute'
 import HomePage from './pages/HomePage'
 import SetupPage from './pages/SetupPage'
 import ReaderPage from './pages/ReaderPage'
@@ -10,6 +10,7 @@ import ResultPage from './pages/ResultPage'
 import UploadPage from './pages/UploadPage'
 import LoginPage from './pages/LoginPage'
 import OnboardingPage from './pages/OnboardingPage'
+import TeacherDashboardPage from './pages/TeacherDashboardPage'
 
 function App() {
     return (
@@ -28,6 +29,7 @@ function App() {
                             <Route path="/result"        element={<ResultPage />} />
 
                             <Route path="/upload" element={<RegisteredRoute><UploadPage /></RegisteredRoute>} />
+                            <Route path="/teacher" element={<TeacherRoute><TeacherDashboardPage /></TeacherRoute>} />
                         </Routes>
                     </OnboardingGate>
                 </BrowserRouter>

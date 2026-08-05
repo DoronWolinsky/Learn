@@ -4,6 +4,7 @@ import type { UserRole } from '../types'
 
 export interface EmailIndexEntry {
     uid: string
+    name: string | null
     roles: UserRole[]
 }
 
@@ -20,8 +21,12 @@ export const usersApi = {
             isAnonymous: false,
             createdAt: Timestamp.now(),
         })
+        // Mirrors `name`/`roles` here (not just uid) because Firestore rules only let a user read
+        // their own `users/{uid}` doc — this is the only doc a teacher is allowed to read to find
+        // a student's name/eligibility by email.
         batch.set(doc(db, 'emailIndex', normalizedEmail), {
             uid,
+            name,
             roles,
         })
         await batch.commit()
@@ -32,6 +37,6 @@ export const usersApi = {
         const snapshot = await getDoc(doc(db, 'emailIndex', normalizedEmail))
         if (!snapshot.exists()) return null
         const data = snapshot.data()
-        return { uid: data.uid, roles: data.roles as UserRole[] }
+        return { uid: data.uid, name: data.name ?? null, roles: data.roles as UserRole[] }
     },
 }
