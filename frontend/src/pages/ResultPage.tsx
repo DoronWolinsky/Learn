@@ -9,6 +9,8 @@ interface ResultState {
     total: number
     textId: string
     textTitle: string
+    assignmentId: string | null
+    teacherId: string | null
 }
 
 function ResultPage() {
@@ -22,11 +24,11 @@ function ResultPage() {
         return null
     }
 
-    const { score, total, textId, textTitle } = state
+    const { score, total, textId, textTitle, assignmentId, teacherId } = state
 
     useEffect(() => {
         if (user && !user.isAnonymous) {
-            resultsApi.record({ userId: user.uid, textId, textTitle, score, total })
+            resultsApi.record({ userId: user.uid, textId, textTitle, score, total, assignmentId, teacherId })
             return
         }
         const existing = localStorage.getItem('textProgress')

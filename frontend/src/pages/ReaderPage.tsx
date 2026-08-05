@@ -14,6 +14,8 @@ interface LocationState {
     wpm: number
     wordsPerWindow: number
     blurAmount: number
+    assignmentId: string | null
+    teacherId: string | null
 }
 
 interface Chunk {
@@ -50,7 +52,7 @@ function ReaderPage() {
         return null
     }
 
-    const { text, wpm, wordsPerWindow, blurAmount } = state
+    const { text, wpm, wordsPerWindow, blurAmount, assignmentId, teacherId } = state
 
     const { paragraphs, totalWords } = useRef(buildParagraphs(text.body)).current
     const wordRefs = useRef<(HTMLSpanElement | null)[]>(new Array(totalWords).fill(null))
@@ -148,7 +150,7 @@ function ReaderPage() {
                 <div className="flex-1 flex flex-col items-center justify-center gap-6">
                     <p className="text-xl opacity-50">You finished the text.</p>
                     <button
-                        onClick={() => navigate('/comprehension', { state: { text } })}
+                        onClick={() => navigate('/comprehension', { state: { text, assignmentId, teacherId } })}
                         className="px-12 py-4 rounded-2xl text-lg font-semibold text-white bg-gradient-to-r from-[#7c3aed] to-[#a855f7] hover:opacity-90 active:scale-95 transition-all duration-150 shadow-lg shadow-[#7c3aed]/30"
                     >
                         Test Yourself
