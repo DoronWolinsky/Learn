@@ -13,6 +13,7 @@ interface QuestionData {
 }
 
 interface TextData {
+    id: string
     title: string
     questions: QuestionData[]
     dir: 'ltr' | 'rtl'
@@ -70,7 +71,7 @@ function ComprehensionPage() {
         const delay = 900
         const timer = setTimeout(() => {
             if (questionIndex + 1 >= questions.length) {
-                navigate('/result', {state: {score, total: questions.length, textTitle: text.title}})
+                navigate('/result', {state: {score, total: questions.length, textId: text.id, textTitle: text.title}})
             }
         }, delay)
         return () => clearTimeout(timer)

@@ -1,14 +1,27 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
+import { useAuth } from '../context/AuthContext'
 import { textsApi } from '../api/texts'
 import type { TextSummary, TextFull } from '../api/texts'
+import { resultsApi } from '../api/results'
 
 function SetupPage() {
     const navigate = useNavigate()
     const { theme, toggleTheme } = useTheme()
-    const progress: Record<string, { score: number; total: number }> =
-        JSON.parse(localStorage.getItem('textProgress') || '{}')
+    const { user } = useAuth()
+
+    const [progress, setProgress] = useState<Record<string, { score: number; total: number }>>({})
+
+    useEffect(() => {
+        if (user && !user.isAnonymous) {
+            resultsApi.listForUser(user.uid).then(setProgress)
+        } else {
+            const stored: Record<string, { score: number; total: number }> =
+                JSON.parse(localStorage.getItem('textProgress') || '{}')
+            setProgress(stored)
+        }
+    }, [user])
 
     const [wpm, setWpm] = useState(200)
     const [wordsPerWindow, setWordsPerWindow] = useState(3)
@@ -97,7 +110,7 @@ function SetupPage() {
                         {texts.map(text => {
                             const minutes = Math.ceil(text.wordCount / wpm)
                             const isSelected = selectedSummary?.id === text.id
-                            const entry = progress[text.title]
+                            const entry = user && !user.isAnonymous ? progress[text.id] : progress[text.title]
                             const progressBorder = entry
                                 ? entry.score === entry.total
                                     ? 'border-green-500'

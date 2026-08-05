@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
 
 interface TextData {
+    id: string
     title: string
     body: string
     dir: 'ltr' | 'rtl'

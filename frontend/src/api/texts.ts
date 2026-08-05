@@ -10,6 +10,7 @@ export interface TextSummary {
 }
 
 export interface TextFull {
+    id: string
     title: string
     body: string
     dir: 'ltr' | 'rtl'
@@ -54,6 +55,7 @@ export const textsApi = {
         if (!snapshot.exists()) throw new Error('Text not found')
         const data = snapshot.data()
         return {
+            id: snapshot.id,
             title: data.title,
             body: data.body,
             dir: data.direction as 'ltr' | 'rtl',

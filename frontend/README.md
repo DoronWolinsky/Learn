@@ -1,6 +1,6 @@
 # VeloxLearn — Frontend
 
-React + TypeScript + Vite frontend for VeloxLearn.
+React + TypeScript + Vite frontend for VeloxLearn. This is a frontend-only app — there is no backend server. All data and auth go through Firebase directly from the browser.
 
 ## Development
 
@@ -9,16 +9,10 @@ npm install
 npm run dev
 ```
 
-Runs on `http://localhost:5173`. Requires the backend to be running locally or set `VITE_API_URL` to point to a remote backend.
+Runs on `http://localhost:5173`. No environment variables needed — Firebase config is hardcoded in `firebase.config.ts` (public keys, safe to commit for Firebase web apps).
 
 ## Build
 
 ```bash
 npm run build
 ```
-
-## Environment Variables
-
-| Variable | Description |
-|---|---|
-| `VITE_API_URL` | Backend API base URL (defaults to `http://localhost:3000/api`) |
