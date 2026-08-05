@@ -1,16 +1,22 @@
 import { useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
+import { useAuth } from '../context/AuthContext'
+import { resultsApi } from '../api/results'
 
 interface ResultState {
     score: number
     total: number
+    textId: string
     textTitle: string
+    assignmentId: string | null
+    teacherId: string | null
 }
 
 function ResultPage() {
     const navigate = useNavigate()
     const { theme, toggleTheme } = useTheme()
+    const { user } = useAuth()
     const state = useLocation().state as ResultState | null
 
     if (!state) {
@@ -18,9 +24,13 @@ function ResultPage() {
         return null
     }
 
-    const { score, total, textTitle } = state
+    const { score, total, textId, textTitle, assignmentId, teacherId } = state
 
     useEffect(() => {
+        if (user && !user.isAnonymous) {
+            resultsApi.record({ userId: user.uid, textId, textTitle, score, total, assignmentId, teacherId })
+            return
+        }
         const existing = localStorage.getItem('textProgress')
         const parsed = existing ? JSON.parse(existing) : {}
         parsed[textTitle] = { score, total }

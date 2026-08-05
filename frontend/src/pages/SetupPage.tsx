@@ -1,14 +1,29 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
+import { useAuth } from '../context/AuthContext'
 import { textsApi } from '../api/texts'
 import type { TextSummary, TextFull } from '../api/texts'
+import { resultsApi } from '../api/results'
+import { assignmentsApi } from '../api/assignments'
+import type { Assignment } from '../api/assignments'
 
 function SetupPage() {
     const navigate = useNavigate()
     const { theme, toggleTheme } = useTheme()
-    const progress: Record<string, { score: number; total: number }> =
-        JSON.parse(localStorage.getItem('textProgress') || '{}')
+    const { user } = useAuth()
+
+    const [progress, setProgress] = useState<Record<string, { score: number; total: number }>>({})
+
+    useEffect(() => {
+        if (user && !user.isAnonymous) {
+            resultsApi.listForUser(user.uid).then(setProgress)
+        } else {
+            const stored: Record<string, { score: number; total: number }> =
+                JSON.parse(localStorage.getItem('textProgress') || '{}')
+            setProgress(stored)
+        }
+    }, [user])
 
     const [wpm, setWpm] = useState(200)
     const [wordsPerWindow, setWordsPerWindow] = useState(3)
@@ -20,20 +35,41 @@ function SetupPage() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
+    const [assignments, setAssignments] = useState<Assignment[]>([])
+    const [activeAssignment, setActiveAssignment] = useState<Assignment | null>(null)
+
     useEffect(() => {
-        textsApi.list()
+        if (!user) return
+        textsApi.list(user.uid)
             .then(data => {
                 setTexts(data.texts)
                 if (data.texts.length > 0) handleSelectText(data.texts[0])
             })
             .catch(() => setError('Could not load texts. Please try again.'))
             .finally(() => setLoading(false))
-    }, [])
+    }, [user])
+
+    useEffect(() => {
+        if (!user || !user.roles?.includes('student')) return
+        assignmentsApi.listForStudent(user.uid).then(setAssignments)
+    }, [user])
 
     async function handleSelectText(summary: TextSummary) {
         setSelectedSummary(summary)
         setSelectedFull(null)
+        setActiveAssignment(null)
         const full = await textsApi.get(summary.id)
+        setSelectedFull(full)
+    }
+
+    async function handleSelectAssignment(assignment: Assignment) {
+        setWpm(assignment.wpm)
+        setWordsPerWindow(assignment.wordsPerWindow)
+        setBlurAmount(assignment.blurAmount)
+        setActiveAssignment(assignment)
+        setSelectedSummary(null)
+        setSelectedFull(null)
+        const full = await textsApi.get(assignment.textId)
         setSelectedFull(full)
     }
 
@@ -87,6 +123,29 @@ function SetupPage() {
                     </div>
                 </div>
 
+                {assignments.length > 0 && (
+                    <div className="flex flex-col gap-4">
+                        <p className="text-sm uppercase tracking-widest opacity-50 text-center">Assigned to you</p>
+                        <div className="grid grid-cols-2 gap-4">
+                            {assignments.map(assignment => {
+                                const isSelected = activeAssignment?.id === assignment.id
+                                return (
+                                    <button
+                                        key={assignment.id}
+                                        onClick={() => handleSelectAssignment(assignment)}
+                                        className={`p-4 rounded-2xl border-2 text-left flex flex-col gap-2 transition-all duration-150 ${
+                                            isSelected ? 'border-[#7c3aed] shadow-lg shadow-[#7c3aed]/20' : 'border-[#1a1a2e]/10 dark:border-white/10 hover:border-[#7c3aed]/40'
+                                        }`}
+                                    >
+                                        <span className="font-semibold text-sm leading-snug">{assignment.textTitle}</span>
+                                        <span className="text-xs opacity-50">from {assignment.teacherName ?? 'your teacher'}</span>
+                                    </button>
+                                )
+                            })}
+                        </div>
+                    </div>
+                )}
+
                 <div className="flex flex-col gap-4">
                     <p className="text-sm uppercase tracking-widest opacity-50 text-center">Choose a text</p>
 
@@ -97,7 +156,7 @@ function SetupPage() {
                         {texts.map(text => {
                             const minutes = Math.ceil(text.wordCount / wpm)
                             const isSelected = selectedSummary?.id === text.id
-                            const entry = progress[text.title]
+                            const entry = user && !user.isAnonymous ? progress[text.id] : progress[text.title]
                             const progressBorder = entry
                                 ? entry.score === entry.total
                                     ? 'border-green-500'
@@ -123,7 +182,16 @@ function SetupPage() {
 
                 <button
                     disabled={!selectedFull}
-                    onClick={() => navigate('/read', { state: { text: selectedFull, wpm, wordsPerWindow, blurAmount } })}
+                    onClick={() => navigate('/read', {
+                        state: {
+                            text: selectedFull,
+                            wpm,
+                            wordsPerWindow,
+                            blurAmount,
+                            assignmentId: activeAssignment?.id ?? null,
+                            teacherId: activeAssignment?.teacherId ?? null,
+                        },
+                    })}
                     className="w-full py-4 rounded-2xl text-lg font-semibold text-white bg-gradient-to-r from-[#7c3aed] to-[#a855f7] hover:opacity-90 active:scale-95 transition-all duration-150 shadow-lg shadow-[#7c3aed]/30 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                     Start Reading

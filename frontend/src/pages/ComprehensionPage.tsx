@@ -13,6 +13,7 @@ interface QuestionData {
 }
 
 interface TextData {
+    id: string
     title: string
     questions: QuestionData[]
     dir: 'ltr' | 'rtl'
@@ -20,6 +21,8 @@ interface TextData {
 
 interface LocationState {
     text: TextData
+    assignmentId: string | null
+    teacherId: string | null
 }
 
 function buildData(text: TextData): QuestionData[] {
@@ -39,7 +42,7 @@ function ComprehensionPage() {
         return null
     }
 
-    const { text } = state
+    const { text, assignmentId, teacherId } = state
     const questions = useRef(buildData(text)).current
     const [questionIndex, setQuestionIndex] = useState(0)
     const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
@@ -70,7 +73,7 @@ function ComprehensionPage() {
         const delay = 900
         const timer = setTimeout(() => {
             if (questionIndex + 1 >= questions.length) {
-                navigate('/result', {state: {score, total: questions.length, textTitle: text.title}})
+                navigate('/result', {state: {score, total: questions.length, textId: text.id, textTitle: text.title, assignmentId, teacherId}})
             }
         }, delay)
         return () => clearTimeout(timer)

@@ -1,8 +1,13 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTheme } from '../context/ThemeContext'
+import { useAuth } from '../context/AuthContext'
 import { textsApi } from '../api/texts'
 import type { UploadPayload } from '../api/texts'
+import { usersApi } from '../api/users'
+import type { Difficulty, Visibility } from '../types'
+
+const DIFFICULTIES: Difficulty[] = ['beginner', 'intermediate', 'advanced']
 
 interface AnswerDraft {
     body: string
@@ -25,10 +30,14 @@ function emptyQuestion(): QuestionDraft {
 function UploadPage() {
     const navigate = useNavigate()
     const { theme, toggleTheme } = useTheme()
+    const { user } = useAuth()
 
     const [title, setTitle] = useState('')
     const [body, setBody] = useState('')
     const [direction, setDirection] = useState<'ltr' | 'rtl'>('ltr')
+    const [difficulty, setDifficulty] = useState<Difficulty>('beginner')
+    const [visibility, setVisibility] = useState<Visibility>('public')
+    const [sharedEmails, setSharedEmails] = useState('')
     const [questions, setQuestions] = useState<QuestionDraft[]>([emptyQuestion()])
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -62,6 +71,7 @@ function UploadPage() {
         setError(null)
         setSuccess(false)
 
+        if (!user) return
         if (!title.trim()) { setError('Title is required.'); return }
         if (!body.trim()) { setError('Text body is required.'); return }
         if (questions.length === 0) { setError('Add at least one question.'); return }
@@ -73,10 +83,30 @@ function UploadPage() {
             }
         }
 
+        setLoading(true)
+
+        let sharedWith: string[] = []
+        if (visibility === 'shared') {
+            const emails = sharedEmails.split(/[,\n]/).map(e => e.trim()).filter(Boolean)
+            if (emails.length === 0) { setError('Add at least one email to share with.'); setLoading(false); return }
+            const lookups = await Promise.all(emails.map(email => usersApi.lookupByEmail(email)))
+            const unresolved = emails.filter((_, i) => !lookups[i])
+            if (unresolved.length > 0) {
+                setError(`No account found for: ${unresolved.join(', ')}`)
+                setLoading(false)
+                return
+            }
+            sharedWith = lookups.map(entry => entry!.uid)
+        }
+
         const payload: UploadPayload = {
             title: title.trim(),
             body: body.trim(),
             direction,
+            ownerId: user.uid,
+            difficulty,
+            visibility,
+            sharedWith,
             questions: questions.map(q => ({
                 body: q.body.trim(),
                 answers: q.answers.map((a, i) => ({
@@ -86,12 +116,12 @@ function UploadPage() {
             })),
         }
 
-        setLoading(true)
         try {
             await textsApi.upload(payload)
             setSuccess(true)
             setTitle('')
             setBody('')
+            setSharedEmails('')
             setQuestions([emptyQuestion()])
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Upload failed')
@@ -149,6 +179,53 @@ function UploadPage() {
                             </label>
                         ))}
                     </div>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                    <label className="text-sm uppercase tracking-widest opacity-50">Difficulty</label>
+                    <div className="flex gap-6">
+                        {DIFFICULTIES.map(level => (
+                            <label key={level} className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="difficulty"
+                                    value={level}
+                                    checked={difficulty === level}
+                                    onChange={() => setDifficulty(level)}
+                                    className="accent-[#7c3aed]"
+                                />
+                                <span className="capitalize text-sm font-medium">{level}</span>
+                            </label>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                    <label className="text-sm uppercase tracking-widest opacity-50">Visibility</label>
+                    <div className="flex gap-6">
+                        {(['public', 'private', 'shared'] as const).map(v => (
+                            <label key={v} className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="visibility"
+                                    value={v}
+                                    checked={visibility === v}
+                                    onChange={() => setVisibility(v)}
+                                    className="accent-[#7c3aed]"
+                                />
+                                <span className="capitalize text-sm font-medium">{v}</span>
+                            </label>
+                        ))}
+                    </div>
+                    {visibility === 'shared' && (
+                        <textarea
+                            value={sharedEmails}
+                            onChange={e => setSharedEmails(e.target.value)}
+                            rows={3}
+                            placeholder="Emails to share with, separated by commas or new lines"
+                            className={`${inputClass} resize-y`}
+                        />
+                    )}
                 </div>
 
                 <div className="flex flex-col gap-2">
