@@ -34,14 +34,15 @@ function SetupPage() {
     const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
-        textsApi.list()
+        if (!user) return
+        textsApi.list(user.uid)
             .then(data => {
                 setTexts(data.texts)
                 if (data.texts.length > 0) handleSelectText(data.texts[0])
             })
             .catch(() => setError('Could not load texts. Please try again.'))
             .finally(() => setLoading(false))
-    }, [])
+    }, [user])
 
     async function handleSelectText(summary: TextSummary) {
         setSelectedSummary(summary)
